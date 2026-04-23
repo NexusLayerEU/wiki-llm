@@ -1,0 +1,2 @@
+[console_scripts]
+wikiforge = wikiforge.main:run

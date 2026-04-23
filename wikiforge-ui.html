@@ -1,0 +1,836 @@
+
+I want to build a program, it will receive a files md files, doc and docx, excel files, pdfs and then sort them out into a wiki Web UI, it will use ai llm for all the process. Provide me with the architecture, and a sample Web UI. Also I want to be able to monitor the progress, and also to auto update the wiki, so if I put more files or updates on the files to auto update the wiki, I was think of a ui, to make project each project will have a nice, source directory and directory where the wiki will be exported. And then the program will populate the url to view the wiki, wiki should have a api so it will be agent friendly.
+
+12:58 AM
+I'll design this architecture and build a sample Web UI for you. Let me first check the frontend design skill for best practices.
+
+
+Read frontend design skill
+Read frontend design skill
+Now let me build the architecture document and a full interactive Web UI prototype.
+
+
+Created a file, read a file
+Created a file, read a file
+Here's the interactive UI prototype — click through all 7 tabs (Dashboard, Files, Wiki Preview, Pipeline, Monitoring, Settings, API) to explore the full experience.
+
+Now here's the architecture for WikiForge:
+
+System Overview — 3 layers:
+
+1. Ingestion Layer — A file watcher (inotify/polling) monitors each project's source directory. When files are added or modified, they enter a processing queue. Parsers extract raw content: python-docx for .doc/.docx, openpyxl for .xlsx, PyMuPDF for PDFs, and raw read for .md. A delta-detection system (hash-based) avoids reprocessing unchanged files.
+
+2. LLM Processing Pipeline — 7 stages run per file: Ingest → Parse → LLM Extract (structure, headings, key entities) → Classify (auto-categorize into wiki sections) → Generate (produce clean wiki markdown) → Cross-link (find relationships between pages using embeddings similarity) → Publish (write to output directory + update the served wiki). Each stage is a queue-based job with status tracking, token counting, and retry logic.
+
+3. Serving Layer — A FastAPI backend serves both the Web UI and the Wiki API. The wiki is served as static markdown rendered to HTML, with a full REST API for agents. The /agent/query endpoint does RAG (retrieval-augmented generation) over the wiki content for natural language queries.
+
+Key design decisions:
+
+Each project is self-contained: source dir, output dir, its own wiki namespace, independent processing pipeline
+Auto-update works via filesystem watching — modify a file, and only that file gets reprocessed (delta mode), then the affected wiki pages regenerate
+The API is agent-first: OpenAPI spec at /agent/openapi.json, semantic search, RAG query endpoint, and structured JSON responses — ready for MCP or tool-use integration
+Monitoring tracks LLM token usage, processing latency, success rates, and file watcher health per project
+Suggested tech stack: Python + FastAPI backend, Celery/Redis for job queues, SQLite per project for metadata, Anthropic SDK for LLM calls, and the React/HTML frontend you see in the prototype.
+
+
+Wikiforge ui
+Code · HTML 
+Create all documents so I can give them an cli agent for development also don't tie to one model, I want to support Claude, gemini, olllama.
+
+1:05 AM
+Let me plan out the full documentation package, then read the relevant skills for producing high-quality files.
+
+
+Read the markdown/doc skill for best practices
+Read the markdown/doc skill for best practices
+Since these will be markdown files for a CLI agent, I'll create them directly as .md files — much more practical for agent consumption than .docx.
+
+
+Created 12 files, ran a command
+Created 12 files, ran a command
+Now let me copy everything to outputs:
+
+
+Ran a command, read a file
+Ran a command, read a file
+Here are all 12 documents — ~155KB total, designed to be fed directly to a CLI agent like Claude Code. Here's how they break down:
+
+Start here: SPEC.md — the master overview with requirements and document index
+
+System design: ARCHITECTURE.md (component diagram, directory layout, data flow) → DATA_MODELS.md (all SQL schemas, state machine, Pydantic models)
+
+LLM abstraction: LLM_PROVIDER.md — full provider interface for Claude, Gemini, and Ollama with the registry pattern, fallback chains, prompt templates, and instructions for adding custom providers
+
+Processing: FILE_PARSERS.md (parsers for .md, .docx, .doc, .xlsx, .csv, .pdf) → PIPELINE.md (7-stage pipeline with retry logic, job queue) → WIKI_ENGINE.md (rendering, cross-linking, search, RAG)
+
+Interfaces: API_SPEC.md (full REST API with agent endpoints) → WEB_UI.md (React component architecture) → FILE_WATCHER.md (auto-sync with debouncing)
+
+Operations: CONFIG.md (YAML config, env vars, Docker Compose, Dockerfile) → DEVELOPMENT.md (setup, testing strategy, 38-step build order)
+
+The DEVELOPMENT.md has a phased implementation order — an agent can follow it sequentially starting from Phase 1 (foundation) through Phase 9 (production).
+
+
+Spec
+Document · MD 
+
+Architecture
+Document · MD 
+
+Data models
+Document · MD 
+
+Llm provider
+Document · MD 
+
+File parsers
+Document · MD 
+
+Pipeline
+Document · MD 
+
+Wiki engine
+Document · MD 
+
+Api spec
+Document · MD 
+
+Web ui
+Document · MD 
+
+File watcher
+Document · MD 
+
+Config
+Document · MD 
+
+Development
+Document · MD 
+
+
+
+
+
+Claude is AI and can make mistakes. Please double-check responses.
+Wikiforge ui · HTML
+Copy
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WikiForge — AI-Powered Document Wiki Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0c10;--surface:#12151c;--surface2:#1a1e28;--surface3:#222736;
+  --border:#2a3040;--border2:#353d52;
+  --text:#e8ecf4;--text2:#9aa3b8;--text3:#6b7590;
+  --accent:#4af;--accent2:#38d;--accent-glow:rgba(68,170,255,.15);
+  --green:#3ddc84;--green-glow:rgba(61,220,132,.12);
+  --orange:#ff9f43;--orange-glow:rgba(255,159,67,.12);
+  --red:#ff6b6b;--red-glow:rgba(255,107,107,.12);
+  --purple:#a78bfa;--purple-glow:rgba(167,139,250,.12);
+  --radius:10px;--radius-lg:16px;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'DM Sans',sans-serif;
+  --display:'Fraunces',serif;
+}
+html{font-size:14px}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+ 
+/* Layout */
+.app{display:grid;grid-template-columns:260px 1fr;grid-template-rows:56px 1fr;height:100vh}
+.topbar{grid-column:1/-1;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:16px;z-index:10}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:16px 0;overflow-y:auto;display:flex;flex-direction:column}
+.main{overflow-y:auto;padding:32px;background:var(--bg)}
+ 
+/* Topbar */
+.logo{font-family:var(--display);font-size:1.4rem;font-weight:700;color:var(--accent);letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
+.logo svg{width:28px;height:28px}
+.topbar-actions{margin-left:auto;display:flex;align-items:center;gap:12px}
+.btn{padding:8px 18px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-family:var(--sans);font-size:.85rem;font-weight:500;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-glow)}
+.btn-primary{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+.btn-primary:hover{background:var(--accent2);border-color:var(--accent2);box-shadow:0 0 20px var(--accent-glow)}
+.btn-sm{padding:5px 12px;font-size:.78rem}
+.btn-icon{width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:8px}
+ 
+/* Sidebar */
+.sidebar-section{padding:0 16px;margin-bottom:24px}
+.sidebar-label{font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--text3);margin-bottom:10px;padding:0 8px}
+.project-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius);cursor:pointer;transition:all .15s;position:relative}
+.project-item:hover{background:var(--surface2)}
+.project-item.active{background:var(--accent-glow);border:1px solid rgba(68,170,255,.2)}
+.project-item.active .project-dot{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+.project-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0}
+.project-dot.processing{background:var(--orange);box-shadow:0 0 8px var(--orange);animation:pulse 1.5s infinite}
+.project-dot.ready{background:var(--green);box-shadow:0 0 8px var(--green)}
+.project-dot.error{background:var(--red);box-shadow:0 0 8px var(--red)}
+.project-name{font-size:.85rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.project-meta{font-size:.7rem;color:var(--text3)}
+.sidebar-footer{margin-top:auto;padding:16px;border-top:1px solid var(--border)}
+ 
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+ 
+/* Tabs */
+.tabs{display:flex;gap:2px;background:var(--surface);border-radius:var(--radius);padding:3px;margin-bottom:28px;width:fit-content}
+.tab{padding:8px 20px;border-radius:8px;font-size:.82rem;font-weight:500;cursor:pointer;color:var(--text2);transition:all .2s;border:none;background:transparent}
+.tab:hover{color:var(--text)}
+.tab.active{background:var(--accent);color:var(--bg);font-weight:600}
+ 
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.card-title{font-size:1.05rem;font-weight:600;font-family:var(--display)}
+.card-subtitle{font-size:.78rem;color:var(--text2);margin-top:2px}
+ 
+/* Dashboard */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.stat-card.blue::before{background:linear-gradient(90deg,var(--accent),transparent)}
+.stat-card.green::before{background:linear-gradient(90deg,var(--green),transparent)}
+.stat-card.orange::before{background:linear-gradient(90deg,var(--orange),transparent)}
+.stat-card.purple::before{background:linear-gradient(90deg,var(--purple),transparent)}
+.stat-value{font-family:var(--mono);font-size:2rem;font-weight:700;line-height:1}
+.stat-label{font-size:.75rem;color:var(--text3);margin-top:6px;text-transform:uppercase;letter-spacing:.06em}
+.stat-change{font-size:.72rem;margin-top:8px;display:flex;align-items:center;gap:4px}
+.stat-change.up{color:var(--green)}
+.stat-change.down{color:var(--red)}
+ 
+/* File list */
+.file-table{width:100%;border-collapse:collapse}
+.file-table th{text-align:left;padding:10px 14px;font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);border-bottom:1px solid var(--border)}
+.file-table td{padding:12px 14px;border-bottom:1px solid rgba(42,48,64,.4);font-size:.85rem;vertical-align:middle}
+.file-table tr:hover td{background:var(--surface2)}
+.file-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;font-family:var(--mono);text-transform:uppercase}
+.file-icon.md{background:rgba(68,170,255,.12);color:var(--accent)}
+.file-icon.doc{background:rgba(68,130,255,.12);color:#48f}
+.file-icon.xls{background:rgba(61,220,132,.12);color:var(--green)}
+.file-icon.pdf{background:rgba(255,107,107,.12);color:var(--red)}
+ 
+/* Status badges */
+.badge{padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:600;font-family:var(--mono)}
+.badge-processing{background:var(--orange-glow);color:var(--orange);border:1px solid rgba(255,159,67,.2)}
+.badge-done{background:var(--green-glow);color:var(--green);border:1px solid rgba(61,220,132,.2)}
+.badge-queued{background:var(--purple-glow);color:var(--purple);border:1px solid rgba(167,139,250,.2)}
+.badge-error{background:var(--red-glow);color:var(--red);border:1px solid rgba(255,107,107,.2)}
+ 
+/* Progress bars */
+.progress-bar{height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;position:relative}
+.progress-fill{height:100%;border-radius:3px;transition:width .6s ease;position:relative}
+.progress-fill::after{content:'';position:absolute;top:0;right:0;bottom:0;width:30px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2));animation:shimmer 1.5s infinite}
+.progress-fill.blue{background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.progress-fill.green{background:linear-gradient(90deg,var(--green),#2fb870)}
+.progress-fill.orange{background:linear-gradient(90deg,var(--orange),#e88a30)}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+ 
+/* Wiki preview */
+.wiki-tree{font-family:var(--mono);font-size:.82rem}
+.wiki-tree-item{padding:6px 12px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .15s}
+.wiki-tree-item:hover{background:var(--surface2)}
+.wiki-tree-item.active{background:var(--accent-glow);color:var(--accent)}
+.wiki-tree-children{padding-left:20px;border-left:1px solid var(--border);margin-left:12px}
+.wiki-content{padding:24px 32px;line-height:1.75;font-size:.92rem}
+.wiki-content h1{font-family:var(--display);font-size:1.8rem;font-weight:700;margin-bottom:16px;color:var(--text);border-bottom:1px solid var(--border);padding-bottom:12px}
+.wiki-content h2{font-family:var(--display);font-size:1.3rem;font-weight:600;margin:24px 0 12px;color:var(--text)}
+.wiki-content p{color:var(--text2);margin-bottom:12px}
+.wiki-content code{font-family:var(--mono);background:var(--surface3);padding:2px 8px;border-radius:4px;font-size:.82rem;color:var(--accent)}
+ 
+/* Pipeline */
+.pipeline-steps{display:flex;gap:4px;align-items:center;margin:20px 0}
+.pipeline-step{flex:1;text-align:center;position:relative}
+.pipeline-node{width:44px;height:44px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:.9rem;transition:all .3s}
+.pipeline-node.done{border-color:var(--green);background:var(--green-glow);color:var(--green)}
+.pipeline-node.active{border-color:var(--accent);background:var(--accent-glow);color:var(--accent);box-shadow:0 0 16px var(--accent-glow);animation:pulse 2s infinite}
+.pipeline-node.pending{border-color:var(--border);color:var(--text3)}
+.pipeline-step-label{font-size:.7rem;color:var(--text3);font-weight:500}
+.pipeline-step-label.active{color:var(--accent)}
+.pipeline-step-label.done{color:var(--green)}
+.pipeline-connector{width:100%;height:2px;background:var(--border);position:absolute;top:22px;left:50%;z-index:-1}
+.pipeline-connector.done{background:var(--green)}
+ 
+/* Logs */
+.log-container{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px;max-height:240px;overflow-y:auto;font-family:var(--mono);font-size:.75rem;line-height:1.8}
+.log-line{display:flex;gap:12px}
+.log-time{color:var(--text3);flex-shrink:0}
+.log-level{flex-shrink:0;font-weight:600;width:44px}
+.log-level.info{color:var(--accent)}
+.log-level.ok{color:var(--green)}
+.log-level.warn{color:var(--orange)}
+.log-level.err{color:var(--red)}
+.log-msg{color:var(--text2)}
+ 
+/* Settings form */
+.form-group{margin-bottom:20px}
+.form-label{font-size:.78rem;font-weight:600;color:var(--text2);margin-bottom:6px;display:block}
+.form-input{width:100%;padding:10px 14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--mono);font-size:.82rem;transition:border-color .2s}
+.form-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.form-hint{font-size:.7rem;color:var(--text3);margin-top:4px}
+ 
+/* Two-column layout */
+.split{display:grid;grid-template-columns:280px 1fr;gap:0;height:calc(100vh - 56px - 64px - 60px);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;background:var(--surface)}
+.split-left{border-right:1px solid var(--border);overflow-y:auto;padding:16px}
+.split-right{overflow-y:auto;background:var(--bg)}
+ 
+/* Modal overlay */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);z-index:100;display:flex;align-items:center;justify-content:center}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:32px;width:520px;max-width:90vw}
+.modal-title{font-family:var(--display);font-size:1.3rem;font-weight:700;margin-bottom:20px}
+ 
+/* API section */
+.api-endpoint{display:flex;align-items:center;gap:8px;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px}
+.api-method{font-family:var(--mono);font-size:.72rem;font-weight:700;padding:3px 8px;border-radius:4px}
+.api-method.get{background:rgba(61,220,132,.15);color:var(--green)}
+.api-method.post{background:rgba(68,170,255,.15);color:var(--accent)}
+.api-method.put{background:rgba(255,159,67,.15);color:var(--orange)}
+.api-method.delete{background:rgba(255,107,107,.15);color:var(--red)}
+.api-path{font-family:var(--mono);font-size:.82rem;color:var(--text2)}
+ 
+/* Scroll */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--border2)}
+ 
+/* Active tab highlight */
+.view-hidden{display:none!important}
+</style>
+</head>
+<body>
+ 
+<div class="app">
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="logo">
+      <svg viewBox="0 0 28 28" fill="none"><path d="M4 6a2 2 0 012-2h16a2 2 0 012 2v16a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" stroke="currentColor" stroke-width="1.5"/><path d="M9 10h10M9 14h7M9 18h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="20" cy="20" r="5" fill="#4af" stroke="#0a0c10" stroke-width="2"/><path d="M18.5 20l1 1 2-2" stroke="#0a0c10" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      WikiForge
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-sm" onclick="showModal()">+ New Project</button>
+      <button class="btn btn-icon" title="Notifications">🔔</button>
+      <button class="btn btn-icon" title="API Docs" onclick="switchTab('api')">{ }</button>
+    </div>
+  </header>
+ 
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Projects</div>
+      <div class="project-item active" onclick="selectProject(0)">
+        <div class="project-dot ready"></div>
+        <div>
+          <div class="project-name">OSPD Documentation</div>
+          <div class="project-meta">42 files · Live</div>
+        </div>
+      </div>
+      <div class="project-item" onclick="selectProject(1)">
+        <div class="project-dot processing"></div>
+        <div>
+          <div class="project-name">Risk BU Handbook</div>
+          <div class="project-meta">18 files · Processing</div>
+        </div>
+      </div>
+      <div class="project-item" onclick="selectProject(2)">
+        <div class="project-dot"></div>
+        <div>
+          <div class="project-name">Infra Runbooks</div>
+          <div class="project-meta">7 files · Draft</div>
+        </div>
+      </div>
+    </div>
+ 
+    <div class="sidebar-section">
+      <div class="sidebar-label">Quick Links</div>
+      <div class="project-item" onclick="switchTab('monitoring')">
+        <span style="opacity:.5">📊</span>
+        <div class="project-name">Monitoring</div>
+      </div>
+      <div class="project-item" onclick="switchTab('api')">
+        <span style="opacity:.5">🔌</span>
+        <div class="project-name">API Explorer</div>
+      </div>
+    </div>
+ 
+    <div class="sidebar-footer">
+      <div style="font-size:.72rem;color:var(--text3);font-family:var(--mono)">
+        WikiForge v0.1.0<br>
+        LLM: Claude Sonnet 4<br>
+        <span style="color:var(--green)">● Connected</span>
+      </div>
+    </div>
+  </aside>
+ 
+  <!-- Main Content -->
+  <main class="main" id="main-content">
+ 
+    <!-- Tab Navigation -->
+    <div class="tabs" id="main-tabs">
+      <div class="tab active" onclick="switchTab('dashboard')">Dashboard</div>
+      <div class="tab" onclick="switchTab('files')">Files</div>
+      <div class="tab" onclick="switchTab('wiki')">Wiki Preview</div>
+      <div class="tab" onclick="switchTab('pipeline')">Pipeline</div>
+      <div class="tab" onclick="switchTab('monitoring')">Monitoring</div>
+      <div class="tab" onclick="switchTab('settings')">Settings</div>
+      <div class="tab" onclick="switchTab('api')">API</div>
+    </div>
+ 
+    <!-- DASHBOARD VIEW -->
+    <div id="view-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card blue">
+          <div class="stat-value">42</div>
+          <div class="stat-label">Total Files</div>
+          <div class="stat-change up">↑ 6 new today</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-value">38</div>
+          <div class="stat-label">Wiki Pages</div>
+          <div class="stat-change up">↑ 4 generated</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-value">2</div>
+          <div class="stat-label">Processing</div>
+          <div class="stat-change">⟳ In progress</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-value">97%</div>
+          <div class="stat-label">Coverage</div>
+          <div class="stat-change up">↑ 3% this week</div>
+        </div>
+      </div>
+ 
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Processing Pipeline</div>
+            <div class="card-subtitle">Current file processing status for OSPD Documentation</div>
+          </div>
+          <button class="btn btn-sm">View All →</button>
+        </div>
+        <div class="pipeline-steps">
+          <div class="pipeline-step">
+            <div class="pipeline-node done">📥</div>
+            <div class="pipeline-step-label done">Ingest</div>
+          </div>
+          <div class="pipeline-step">
+            <div class="pipeline-node done">🔍</div>
+            <div class="pipeline-step-label done">Parse</div>
+          </div>
+          <div class="pipeline-step">
+            <div class="pipeline-node done">🧠</div>
+            <div class="pipeline-step-label done">LLM Extract</div>
+          </div>
+          <div class="pipeline-step">
+            <div class="pipeline-node active">🗂️</div>
+            <div class="pipeline-step-label active">Classify</div>
+          </div>
+          <div class="pipeline-step">
+            <div class="pipeline-node pending">📝</div>
+            <div class="pipeline-step-label">Generate</div>
+          </div>
+          <div class="pipeline-step">
+            <div class="pipeline-node pending">🔗</div>
+            <div class="pipeline-step-label">Cross-link</div>
+          </div>
+          <div class="pipeline-step">
+            <div class="pipeline-node pending">✅</div>
+            <div class="pipeline-step-label">Publish</div>
+          </div>
+        </div>
+        <div class="progress-bar" style="margin-top:12px">
+          <div class="progress-fill blue" style="width:58%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:.72rem;color:var(--text3)">
+          <span>58% complete</span>
+          <span>ETA: ~4 min</span>
+        </div>
+      </div>
+ 
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Recent Activity</div>
+        </div>
+        <div class="log-container">
+          <div class="log-line"><span class="log-time">14:32:08</span><span class="log-level ok">OK</span><span class="log-msg">Wiki page generated: "Deployment Guide — Kubernetes"</span></div>
+          <div class="log-line"><span class="log-time">14:31:55</span><span class="log-level info">INFO</span><span class="log-msg">LLM classification complete for batch #7 (3 files)</span></div>
+          <div class="log-line"><span class="log-time">14:31:42</span><span class="log-level info">INFO</span><span class="log-msg">Cross-references detected: 12 links across 8 pages</span></div>
+          <div class="log-line"><span class="log-time">14:31:20</span><span class="log-level ok">OK</span><span class="log-msg">File parsed: infrastructure-specs.docx (14 sections extracted)</span></div>
+          <div class="log-line"><span class="log-time">14:30:58</span><span class="log-level warn">WARN</span><span class="log-msg">PDF table extraction low-confidence on page 7 of report-q4.pdf</span></div>
+          <div class="log-line"><span class="log-time">14:30:30</span><span class="log-level ok">OK</span><span class="log-msg">File watcher: 2 new files detected in /data/ospd/source</span></div>
+          <div class="log-line"><span class="log-time">14:29:15</span><span class="log-level info">INFO</span><span class="log-msg">Auto-update triggered: budget-2026.xlsx modified</span></div>
+          <div class="log-line"><span class="log-time">14:28:40</span><span class="log-level err">ERR</span><span class="log-msg">Failed to parse corrupted file: old-notes.doc (skipped)</span></div>
+        </div>
+      </div>
+    </div>
+ 
+    <!-- FILES VIEW -->
+    <div id="view-files" class="view-hidden">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Source Files</div>
+            <div class="card-subtitle">Watching: /data/ospd/source · Auto-sync enabled</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-sm">🔄 Rescan</button>
+            <button class="btn btn-sm btn-primary">+ Add Files</button>
+          </div>
+        </div>
+        <table class="file-table">
+          <thead>
+            <tr><th>File</th><th>Type</th><th>Size</th><th>Modified</th><th>Status</th><th>Wiki Page</th></tr>
+          </thead>
+          <tbody>
+            <tr><td style="display:flex;align-items:center;gap:10px"><div class="file-icon md">md</div>README.md</td><td style="color:var(--text3)">Markdown</td><td>4.2 KB</td><td>2 min ago</td><td><span class="badge badge-done">Done</span></td><td style="color:var(--accent);cursor:pointer">Overview →</td></tr>
+            <tr><td style="display:flex;align-items:center;gap:10px"><div class="file-icon doc">docx</div>infrastructure-specs.docx</td><td style="color:var(--text3)">Word</td><td>2.1 MB</td><td>15 min ago</td><td><span class="badge badge-done">Done</span></td><td style="color:var(--accent);cursor:pointer">Infra Specs →</td></tr>
+            <tr><td style="display:flex;align-items:center;gap:10px"><div class="file-icon xls">xlsx</div>budget-2026.xlsx</td><td style="color:var(--text3)">Excel</td><td>890 KB</td><td>1 hr ago</td><td><span class="badge badge-processing">Processing</span></td><td style="color:var(--text3)">—</td></tr>
+            <tr><td style="display:flex;align-items:center;gap:10px"><div class="file-icon pdf">pdf</div>security-audit-report.pdf</td><td style="color:var(--text3)">PDF</td><td>5.6 MB</td><td>3 hrs ago</td><td><span class="badge badge-done">Done</span></td><td style="color:var(--accent);cursor:pointer">Security Audit →</td></tr>
+            <tr><td style="display:flex;align-items:center;gap:10px"><div class="file-icon md">md</div>k8s-deployment-guide.md</td><td style="color:var(--text3)">Markdown</td><td>12 KB</td><td>5 hrs ago</td><td><span class="badge badge-done">Done</span></td><td style="color:var(--accent);cursor:pointer">K8s Guide →</td></tr>
+            <tr><td style="display:flex;align-items:center;gap:10px"><div class="file-icon doc">doc</div>old-meeting-notes.doc</td><td style="color:var(--text3)">Word (Legacy)</td><td>340 KB</td><td>2 days ago</td><td><span class="badge badge-error">Error</span></td><td style="color:var(--text3)">—</td></tr>
+            <tr><td style="display:flex;align-items:center;gap:10px"><div class="file-icon pdf">pdf</div>wazuh-sizing-report.pdf</td><td style="color:var(--text3)">PDF</td><td>1.2 MB</td><td>3 days ago</td><td><span class="badge badge-done">Done</span></td><td style="color:var(--accent);cursor:pointer">Wazuh Sizing →</td></tr>
+            <tr><td style="display:flex;align-items:center;gap:10px"><div class="file-icon xls">xlsx</div>server-inventory.xlsx</td><td style="color:var(--text3)">Excel</td><td>450 KB</td><td>1 wk ago</td><td><span class="badge badge-queued">Queued</span></td><td style="color:var(--text3)">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+ 
+    <!-- WIKI PREVIEW VIEW -->
+    <div id="view-wiki" class="view-hidden">
+      <div class="split">
+        <div class="split-left">
+          <div style="margin-bottom:12px;font-size:.72rem;color:var(--text3);font-family:var(--mono)">OSPD DOCUMENTATION WIKI</div>
+          <div class="wiki-tree">
+            <div class="wiki-tree-item active" onclick="showWikiPage('overview')">📄 Overview</div>
+            <div class="wiki-tree-item" style="font-weight:600;margin-top:12px;color:var(--text3);font-size:.75rem">INFRASTRUCTURE</div>
+            <div class="wiki-tree-children">
+              <div class="wiki-tree-item" onclick="showWikiPage('k8s')">📄 Kubernetes Deployment</div>
+              <div class="wiki-tree-item" onclick="showWikiPage('nginx')">📄 Nginx Load Balancing</div>
+              <div class="wiki-tree-item" onclick="showWikiPage('oci')">📄 OCI Configuration</div>
+            </div>
+            <div class="wiki-tree-item" style="font-weight:600;margin-top:12px;color:var(--text3);font-size:.75rem">SECURITY</div>
+            <div class="wiki-tree-children">
+              <div class="wiki-tree-item" onclick="showWikiPage('wazuh')">📄 Wazuh SIEM Setup</div>
+              <div class="wiki-tree-item" onclick="showWikiPage('audit')">📄 Security Audit Report</div>
+            </div>
+            <div class="wiki-tree-item" style="font-weight:600;margin-top:12px;color:var(--text3);font-size:.75rem">OPERATIONS</div>
+            <div class="wiki-tree-children">
+              <div class="wiki-tree-item">📄 Budget 2026</div>
+              <div class="wiki-tree-item">📄 Server Inventory</div>
+            </div>
+          </div>
+        </div>
+        <div class="split-right">
+          <div class="wiki-content" id="wiki-page-content">
+            <div style="display:flex;justify-content:space-between;align-items:start">
+              <h1>OSPD Documentation — Overview</h1>
+              <div style="display:flex;gap:6px"><button class="btn btn-sm">✏️ Edit</button><button class="btn btn-sm">📤 Export</button></div>
+            </div>
+            <p style="padding:12px 16px;background:var(--surface);border-radius:8px;border-left:3px solid var(--accent);font-size:.82rem;color:var(--text2);margin-bottom:20px">
+              <strong style="color:var(--accent)">Auto-generated</strong> from 42 source files · Last updated: 2 minutes ago · Sources: README.md, infrastructure-specs.docx, +4 more
+            </p>
+            <h2>System Architecture</h2>
+            <p>The OSPD platform consists of a Kubernetes-orchestrated microservices architecture deployed across Oracle Cloud Infrastructure (OCI) ARM instances. Traffic is managed through nginx reverse proxies with load balancing configured for <code>portal2.ospd.gr</code>.</p>
+            <h2>Key Components</h2>
+            <p>The deployment stack includes Spring Boot applications exposing REST APIs, a MariaDB Galera cluster for high availability, Wazuh SIEM for security monitoring (estimated at 150 servers, sizing calculated for EPS/LPS requirements), and WireGuard VPN tunnels for secure inter-node communication.</p>
+            <h2>Monitoring & Observability</h2>
+            <p>Metrics are collected via Micrometer/Prometheus integration on Spring Boot services, with Portainer providing container management UI. The transcription service processes Greek-language audio through dedicated API endpoints.</p>
+            <p style="margin-top:20px;padding:12px;border:1px dashed var(--border);border-radius:8px;font-size:.78rem;color:var(--text3)">
+              🔗 <strong>Cross-references:</strong> <span style="color:var(--accent);cursor:pointer">Kubernetes Deployment</span> · <span style="color:var(--accent);cursor:pointer">Wazuh SIEM Setup</span> · <span style="color:var(--accent);cursor:pointer">OCI Configuration</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+ 
+    <!-- PIPELINE VIEW -->
+    <div id="view-pipeline" class="view-hidden">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">LLM Processing Pipeline</div>
+          <button class="btn btn-sm">⏸ Pause</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:12px;text-align:center;margin-bottom:24px">
+          <div><div style="font-size:1.8rem;font-family:var(--mono);font-weight:700;color:var(--green)">42</div><div style="font-size:.7rem;color:var(--text3)">Ingested</div></div>
+          <div><div style="font-size:1.8rem;font-family:var(--mono);font-weight:700;color:var(--green)">40</div><div style="font-size:.7rem;color:var(--text3)">Parsed</div></div>
+          <div><div style="font-size:1.8rem;font-family:var(--mono);font-weight:700;color:var(--green)">38</div><div style="font-size:.7rem;color:var(--text3)">Extracted</div></div>
+          <div><div style="font-size:1.8rem;font-family:var(--mono);font-weight:700;color:var(--accent)">36</div><div style="font-size:.7rem;color:var(--text3)">Classified</div></div>
+          <div><div style="font-size:1.8rem;font-family:var(--mono);font-weight:700;color:var(--text3)">34</div><div style="font-size:.7rem;color:var(--text3)">Generated</div></div>
+          <div><div style="font-size:1.8rem;font-family:var(--mono);font-weight:700;color:var(--text3)">34</div><div style="font-size:.7rem;color:var(--text3)">Cross-linked</div></div>
+          <div><div style="font-size:1.8rem;font-family:var(--mono);font-weight:700;color:var(--text3)">34</div><div style="font-size:.7rem;color:var(--text3)">Published</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:16px">Active Jobs</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="padding:14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <div style="display:flex;align-items:center;gap:8px"><div class="file-icon xls" style="width:24px;height:24px;font-size:.5rem">xls</div><span style="font-size:.85rem;font-weight:500">budget-2026.xlsx</span></div>
+              <span class="badge badge-processing">Extracting tables…</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill orange" style="width:72%"></div></div>
+            <div style="font-size:.7rem;color:var(--text3);margin-top:4px">Sheet 3/4 · 72% · LLM tokens: 14,230</div>
+          </div>
+          <div style="padding:14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <div style="display:flex;align-items:center;gap:8px"><div class="file-icon xls" style="width:24px;height:24px;font-size:.5rem">xls</div><span style="font-size:.85rem;font-weight:500">server-inventory.xlsx</span></div>
+              <span class="badge badge-queued">Queued</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill blue" style="width:0%"></div></div>
+            <div style="font-size:.7rem;color:var(--text3);margin-top:4px">Waiting in queue · Position: #2</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:12px">Processing Log</div>
+        <div class="log-container">
+          <div class="log-line"><span class="log-time">14:32:08</span><span class="log-level info">INFO</span><span class="log-msg">LLM call: classify_content(budget-2026.xlsx#sheet3) → tokens_in=2140 tokens_out=890 latency=1.2s</span></div>
+          <div class="log-line"><span class="log-time">14:32:06</span><span class="log-level ok">OK</span><span class="log-msg">Table extraction: 4 tables found on sheet 3 (confidence: 0.94)</span></div>
+          <div class="log-line"><span class="log-time">14:32:01</span><span class="log-level info">INFO</span><span class="log-msg">LLM call: extract_structure(budget-2026.xlsx#sheet2) → tokens_in=3200 tokens_out=1560 latency=2.1s</span></div>
+          <div class="log-line"><span class="log-time">14:31:55</span><span class="log-level ok">OK</span><span class="log-msg">Wiki page generated: "Budget 2026 — Q1 Allocations" (1,240 words)</span></div>
+          <div class="log-line"><span class="log-time">14:31:42</span><span class="log-level warn">WARN</span><span class="log-msg">Duplicate content detected: k8s-guide.md §3 ≈ infra-specs.docx §7 (similarity: 0.89) — merging</span></div>
+          <div class="log-line"><span class="log-time">14:31:30</span><span class="log-level info">INFO</span><span class="log-msg">File watcher: budget-2026.xlsx modified — triggering re-process (delta mode)</span></div>
+        </div>
+      </div>
+    </div>
+ 
+    <!-- MONITORING VIEW -->
+    <div id="view-monitoring" class="view-hidden">
+      <div class="stats-grid">
+        <div class="stat-card blue">
+          <div class="stat-value" style="font-size:1.5rem">124K</div>
+          <div class="stat-label">LLM Tokens Today</div>
+          <div class="stat-change" style="color:var(--text3)">~$0.37 cost</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-value" style="font-size:1.5rem">1.8s</div>
+          <div class="stat-label">Avg Latency</div>
+          <div class="stat-change down">↑ 0.2s vs yesterday</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-value" style="font-size:1.5rem">99.2%</div>
+          <div class="stat-label">Success Rate</div>
+          <div class="stat-change up">↑ 0.5%</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-value" style="font-size:1.5rem">3</div>
+          <div class="stat-label">Active Watchers</div>
+          <div class="stat-change" style="color:var(--text3)">All healthy</div>
+        </div>
+      </div>
+ 
+      <div class="card">
+        <div class="card-title" style="margin-bottom:16px">File Watcher Status</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:10px"><span style="color:var(--green)">●</span><span style="font-family:var(--mono);font-size:.82rem">/data/ospd/source</span></div>
+            <span style="font-size:.75rem;color:var(--text3)">Polling: 10s · Last check: 2s ago</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:10px"><span style="color:var(--green)">●</span><span style="font-family:var(--mono);font-size:.82rem">/data/risk-bu/source</span></div>
+            <span style="font-size:.75rem;color:var(--text3)">Polling: 30s · Last check: 12s ago</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:10px"><span style="color:var(--green)">●</span><span style="font-family:var(--mono);font-size:.82rem">/data/infra-runbooks/source</span></div>
+            <span style="font-size:.75rem;color:var(--text3)">Polling: 60s · Last check: 45s ago</span>
+          </div>
+        </div>
+      </div>
+ 
+      <div class="card">
+        <div class="card-title" style="margin-bottom:16px">LLM Usage (Last 24 Hours)</div>
+        <div style="display:grid;grid-template-columns:repeat(24,1fr);gap:3px;height:80px;align-items:end">
+          <div style="height:20%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:15%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:10%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:5%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:5%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:8%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:15%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:35%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:55%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:70%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:80%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:65%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:50%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:75%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:90%;background:var(--accent);border-radius:2px"></div>
+          <div style="height:60%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:40%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:30%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:25%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:20%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:35%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:45%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:55%;background:var(--accent);border-radius:2px;opacity:.7"></div>
+          <div style="height:100%;background:var(--accent);border-radius:2px"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--text3);margin-top:4px;font-family:var(--mono)">
+          <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>Now</span>
+        </div>
+      </div>
+    </div>
+ 
+    <!-- SETTINGS VIEW -->
+    <div id="view-settings" class="view-hidden">
+      <div class="card">
+        <div class="card-title" style="margin-bottom:20px">Project Configuration — OSPD Documentation</div>
+        <div class="form-group">
+          <label class="form-label">Project Name</label>
+          <input class="form-input" value="OSPD Documentation" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Source Directory (watched for changes)</label>
+          <input class="form-input" value="/data/ospd/source" />
+          <div class="form-hint">Files in this directory will be automatically detected and processed</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Wiki Export Directory</label>
+          <input class="form-input" value="/data/ospd/wiki-output" />
+          <div class="form-hint">Generated wiki pages and assets will be written here</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Wiki URL (auto-populated after first build)</label>
+          <input class="form-input" value="https://wiki.ospd.internal/ospd-docs" readonly style="color:var(--accent)" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">LLM Provider</label>
+          <input class="form-input" value="anthropic/claude-sonnet-4" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">File Watch Interval</label>
+          <input class="form-input" value="10" />
+          <div class="form-hint">Seconds between filesystem polls for changes</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Auto-Update Mode</label>
+          <input class="form-input" value="delta" />
+          <div class="form-hint">"delta" only reprocesses changed files · "full" rebuilds entire wiki on any change</div>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:24px">
+          <button class="btn btn-primary">Save Configuration</button>
+          <button class="btn">Reset to Defaults</button>
+        </div>
+      </div>
+    </div>
+ 
+    <!-- API VIEW -->
+    <div id="view-api" class="view-hidden">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Wiki API — Agent-Friendly Interface</div>
+            <div class="card-subtitle">RESTful API for programmatic access · Base URL: https://wiki.ospd.internal/api/v1</div>
+          </div>
+          <button class="btn btn-sm">📋 OpenAPI Spec</button>
+        </div>
+ 
+        <div style="margin-bottom:20px">
+          <div style="font-weight:600;font-size:.85rem;margin-bottom:10px;color:var(--text2)">Wiki Content</div>
+          <div class="api-endpoint"><span class="api-method get">GET</span><span class="api-path">/projects</span><span style="margin-left:auto;font-size:.75rem;color:var(--text3)">List all projects</span></div>
+          <div class="api-endpoint"><span class="api-method get">GET</span><span class="api-path">/projects/{id}/pages</span><span style="margin-left:auto;font-size:.75rem;color:var(--text3)">List wiki pages</span></div>
+          <div class="api-endpoint"><span class="api-method get">GET</span><span class="api-path">/projects/{id}/pages/{slug}</span><span style="margin-left:auto;font-size:.75rem;color:var(--text3)">Get page content (MD/HTML/JSON)</span></div>
+          <div class="api-endpoint"><span class="api-method get">GET</span><span class="api-path">/projects/{id}/search?q={query}</span><span style="margin-left:auto;font-size:.75rem;color:var(--text3)">Semantic search across wiki</span></div>
+          <div class="api-endpoint"><span class="api-method get">GET</span><span class="api-path">/projects/{id}/graph</span><span style="margin-left:auto;font-size:.75rem;color:var(--text3)">Knowledge graph / cross-refs</span></div>
+        </div>
+ 
+        <div style="margin-bottom:20px">
+          <div style="font-weight:600;font-size:.85rem;margin-bottom:10px;color:var(--text2)">Ingestion</div>
+          <div class="api-endpoint"><span class="api-method post">POST</span><span class="api-path">/projects/{id}/files</span><span style="margin-left:auto;font-size:.75rem;color:var(--text3)">Upload file(s) for processing</span></div>
+          <div class="api-endpoint"><span class="api-method post">POST</span><span class="api-path">/projects/{id}/trigger-sync</span><span style="margin-left:auto;font-size:.75rem;color:var(--text3)">Force re-scan source directory</span></div>
+          <div class="api-endpoint"><span class="api-method delete">DEL</span><span class="api-path">/projects/{id}/files/{file_id}</span><span style="margin-left:auto;font-size:.75rem;color:var(--text3)">Remove source file</span></div>
+        </div>
+ 
+        <div style="margin-bottom:20px">
+          <div style="font-weight:600;font-size:.85rem;margin-bottom:10px;color:var(--text2)">Pipeline & Monitoring</div>
+          <div class="api-endpoint"><span class="api-method get">GET</span><span class="api-path">/projects/{id}/status</span><span style="margin-left:auto;font-size:.75rem;color:var(--text3)">Pipeline progress + stats</span></div>
+          <div class="api-endpoint"><span class="api-method get">GET</span><span class="api-path">/projects/{id}/jobs</span><span style="margin-left:auto;font-size:.75rem;color:var(--text3)">Active/completed LLM jobs</span></div>
+          <div class="api-endpoint"><span class="api-method get">GET</span><span class="api-path">/health</span><span style="margin-left:auto;font-size:.75rem;color:var(--text3)">Service health check</span></div>
+        </div>
+ 
+        <div style="margin-bottom:20px">
+          <div style="font-weight:600;font-size:.85rem;margin-bottom:10px;color:var(--text2)">Agent Integration</div>
+          <div class="api-endpoint"><span class="api-method post">POST</span><span class="api-path">/agent/query</span><span style="margin-left:auto;font-size:.75rem;color:var(--text3)">Natural language query (RAG)</span></div>
+          <div class="api-endpoint"><span class="api-method get">GET</span><span class="api-path">/agent/context/{topic}</span><span style="margin-left:auto;font-size:.75rem;color:var(--text3)">Get relevant context for topic</span></div>
+          <div class="api-endpoint"><span class="api-method get">GET</span><span class="api-path">/agent/openapi.json</span><span style="margin-left:auto;font-size:.75rem;color:var(--text3)">Machine-readable API schema</span></div>
+        </div>
+ 
+        <div style="padding:16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);margin-top:20px">
+          <div style="font-size:.78rem;font-weight:600;margin-bottom:8px;color:var(--text2)">Example — Agent RAG Query</div>
+          <pre style="font-family:var(--mono);font-size:.78rem;color:var(--text2);overflow-x:auto;line-height:1.7"><span style="color:var(--accent)">POST</span> /agent/query
+{
+  "question": "How is the K8s cluster sized for OSPD?",
+  "project_id": "ospd-docs",
+  "format": "markdown",
+  "include_sources": true
+}
+ 
+<span style="color:var(--text3)">Response:</span>
+{
+  "answer": "The OSPD K8s cluster runs on...",
+  "sources": ["k8s-deployment-guide.md", "infra-specs.docx"],
+  "confidence": 0.94,
+  "wiki_page": "/projects/ospd-docs/pages/kubernetes-deployment"
+}</pre>
+        </div>
+      </div>
+    </div>
+ 
+  </main>
+</div>
+ 
+<!-- New Project Modal -->
+<div class="modal-overlay" id="modal" style="display:none" onclick="hideModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">Create New Project</div>
+    <div class="form-group">
+      <label class="form-label">Project Name</label>
+      <input class="form-input" placeholder="e.g. Risk BU Handbook" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Source Directory</label>
+      <input class="form-input" placeholder="/data/your-project/source" />
+      <div class="form-hint">Absolute path to directory containing your source documents</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Wiki Export Directory</label>
+      <input class="form-input" placeholder="/data/your-project/wiki-output" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">LLM Model</label>
+      <input class="form-input" value="anthropic/claude-sonnet-4" />
+    </div>
+    <div style="display:flex;gap:12px;margin-top:24px">
+      <button class="btn btn-primary" onclick="hideModal()">Create Project</button>
+      <button class="btn" onclick="hideModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+ 
+<script>
+function switchTab(name) {
+  document.querySelectorAll('[id^="view-"]').forEach(v => v.classList.add('view-hidden'));
+  document.getElementById('view-' + name)?.classList.remove('view-hidden');
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.textContent.trim().toLowerCase().replace(' ','') === name);
+  });
+}
+function showModal() { document.getElementById('modal').style.display = 'flex'; }
+function hideModal(e) { if (!e || e.target === document.getElementById('modal')) document.getElementById('modal').style.display = 'none'; }
+function selectProject(i) {
+  document.querySelectorAll('.project-item').forEach((p,idx) => {
+    if(idx < 3) p.classList.toggle('active', idx === i);
+  });
+}
+function showWikiPage(page) {
+  document.querySelectorAll('.wiki-tree-item').forEach(i => i.classList.remove('active'));
+  event.target.classList.add('active');
+}
+</script>
+ 
+</body>
+</html>
+ 
+
