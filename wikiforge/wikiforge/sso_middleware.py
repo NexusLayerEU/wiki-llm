@@ -10,7 +10,7 @@ import jwt
 
 SSO_JWT_SECRET = os.getenv(
     "SSO_JWT_SECRET",
-    "nexlayer-shared-sso-secret-change-in-production-64chars!!",
+    "nexuslayer-shared-sso-secret-change-in-production-64chars!!",
 )
 SSO_ALGORITHM = "HS256"
 IDENTITY_SERVER_URL = os.getenv("IDENTITY_SERVER_URL", "http://192.168.68.111:3007")

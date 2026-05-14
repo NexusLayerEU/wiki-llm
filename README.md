@@ -13,8 +13,8 @@
 
 *Drop files into a folder → get a structured, cross-linked, searchable wiki — automatically.*
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/nexlayer/wikillm/ci.yml?branch=main&style=flat-square&logo=github&label=build)](https://github.com/nexlayer/wikillm)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue?style=flat-square)](https://github.com/nexlayer/wikillm/releases)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/nexuslayer/wikillm/ci.yml?branch=main&style=flat-square&logo=github&label=build)](https://github.com/nexuslayer/wikillm)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue?style=flat-square)](https://github.com/nexuslayer/wikillm/releases)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -22,11 +22,11 @@
 [![Claude](https://img.shields.io/badge/Claude-Anthropic-8B5CF6?style=flat-square&logo=anthropic&logoColor=white)](https://anthropic.com)
 [![Gemini](https://img.shields.io/badge/Gemini-Google-4285F4?style=flat-square&logo=google&logoColor=white)](https://deepmind.google/technologies/gemini/)
 [![Ollama](https://img.shields.io/badge/Ollama-Local_LLM-gray?style=flat-square)](https://ollama.ai)
-[![Nexlayer](https://img.shields.io/badge/Nexlayer-Platform-0F172A?style=flat-square)](../README.md)
+[![NexusLayer](https://img.shields.io/badge/NexusLayer-Platform-0F172A?style=flat-square)](../README.md)
 
 <br/>
 
-[**Live Demo**](http://192.168.68.111:8000) · [**API Docs**](http://192.168.68.111:8000/docs) · [**Report Bug**](https://github.com/nexlayer/wikillm/issues) · [**Request Feature**](https://github.com/nexlayer/wikillm/issues)
+[**Live Demo**](http://192.168.68.111:8000) · [**API Docs**](http://192.168.68.111:8000/docs) · [**Report Bug**](https://github.com/nexuslayer/wikillm/issues) · [**Request Feature**](https://github.com/nexuslayer/wikillm/issues)
 
 </div>
 
@@ -310,7 +310,7 @@ sequenceDiagram
 ### Option A: Docker Compose (Recommended)
 
 ```bash
-git clone https://github.com/nexlayer/wikillm.git
+git clone https://github.com/nexuslayer/wikillm.git
 cd wikillm
 
 cp .env.example .env
@@ -349,7 +349,7 @@ docker compose up -d
 ### Option B: Python (uv/pip)
 
 ```bash
-git clone https://github.com/nexlayer/wikillm.git
+git clone https://github.com/nexuslayer/wikillm.git
 cd wikillm/wikiforge
 
 # Using uv (recommended)
@@ -771,7 +771,7 @@ ignore:
 ### Local Setup
 
 ```bash
-git clone https://github.com/nexlayer/wikillm.git
+git clone https://github.com/nexuslayer/wikillm.git
 cd wikillm/wikiforge
 
 # Setup Python environment
@@ -881,7 +881,7 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 <div align="center">
 
-**WikiLLM** is part of the **Nexlayer Platform** — a suite of self-hosted AI developer tools.
+**WikiLLM** is part of the **NexusLayer Platform** — a suite of self-hosted AI developer tools.
 
 [AgentShop](../AIAgentRental/README.md) · [BrainVault](../BrainVault/README.md) · [PeriodAI](../PeriodAIProduct/README.md) · [WikiLLM](../WikiLLM/README.md) · [ModelRouter](../ModelRouter/README.md) · [AgentVault](../AgentVault/README.md) · [FlowMesh](../flowmesh/README.md) · [WatchGrid](../watchgrid/README.md)
 
