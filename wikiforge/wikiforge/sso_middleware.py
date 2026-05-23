@@ -38,10 +38,18 @@ def get_current_user_from_token(authorization: str) -> Optional[dict]:
 
 
 def is_pro_active(claims: dict) -> bool:
-    if claims.get("tier") != "PRO":
+    tier = claims.get("tier")
+    if tier not in ("PRO", "MAX"):
         return False
     expires = claims.get("planExpiresAt")
     return expires is None or expires > int(time.time() * 1000)
+
+
+PROJECT_LIMITS = {"FREE": 1, "PRO": 10, "MAX": float("inf")}
+
+
+def get_project_limit(claims: dict) -> float:
+    return PROJECT_LIMITS.get(claims.get("tier", "FREE"), 1)
 
 
 def is_trial_active(claims: dict) -> bool:
