@@ -13,8 +13,8 @@
 
 *Drop files into a folder → get a structured, cross-linked, searchable wiki — automatically.*
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/nexuslayer/wikillm/ci.yml?branch=main&style=flat-square&logo=github&label=build)](https://github.com/nexuslayer/wikillm)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue?style=flat-square)](https://github.com/nexuslayer/wikillm/releases)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/NexusLayerEU/wiki-llm/ci.yml?branch=sso&style=flat-square&logo=github&label=build)](https://github.com/NexusLayerEU/wiki-llm)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue?style=flat-square)](https://github.com/NexusLayerEU/wiki-llm/releases)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -26,7 +26,7 @@
 
 <br/>
 
-[**Live Demo**](http://192.168.68.111:8000) · [**API Docs**](http://192.168.68.111:8000/docs) · [**Report Bug**](https://github.com/nexuslayer/wikillm/issues) · [**Request Feature**](https://github.com/nexuslayer/wikillm/issues)
+[**Live**](https://wikillm.nexuslayer.eu) · [**API Docs**](https://wikillm.nexuslayer.eu/api/docs) · [**Report Bug**](https://github.com/NexusLayerEU/wiki-llm/issues) · [**Request Feature**](https://github.com/NexusLayerEU/wiki-llm/issues)
 
 </div>
 
@@ -34,6 +34,7 @@
 
 ## 📋 Table of Contents
 
+- [📦 What is in this repo](#-what-is-in-this-repo)
 - [✨ Features](#-features)
 - [⚡ The 7-Stage Pipeline](#-the-7-stage-pipeline)
 - [🏗️ Architecture](#%EF%B8%8F-architecture)
@@ -45,7 +46,27 @@
 - [⚙️ Configuration](#%EF%B8%8F-configuration)
 - [🧑‍💻 Development](#-development)
 - [🆚 Why WikiLLM?](#-why-wikillm)
+- [🖥️ Desktop app](#%EF%B8%8F-desktop-app)
+- [⚠️ Deviations from the original design](#-deviations-from-the-original-design)
 - [📄 License](#-license)
+
+---
+
+## 📦 What is in this repo
+
+| Path | What it is |
+|---|---|
+| **`wikiforge/`** | The server — FastAPI backend plus its React web UI, one deployable image |
+| `wikiforge/wikiforge/` | Python package: pipeline, parsers, LLM client, routers, wiki engine |
+| `wikiforge/frontend/` | Web UI (React + Vite), compiled into the package at image build time |
+| **`desktop/`** | Desktop notebook (Tauri v2 + React) for macOS, Windows and Linux — notes as `.md` files that sync to a server |
+| `*.md` at root | The original specification, kept because the implementation was rebuilt from it |
+
+> **Two names, one product.** The subdomain and the NexusLayer dashboard say
+> *WikiLLM*; the code says *WikiForge*. The duplication is known and unresolved.
+>
+> **Sections below marked ⓘ describe the current implementation** where it differs
+> from the original design — see [Deviations](#-deviations-from-the-original-design).
 
 ---
 
@@ -169,10 +190,13 @@ generated_at: {timestamp}
 """
 ```
 
-### Stage 6: CROSS-LINK — Semantic Auto-linking
+### Stage 6: CROSS-LINK — Auto-linking ⓘ
 
 ```python
-# Compute embeddings for all wiki pages
+# ⓘ Implemented with local TF-IDF cosine, not provider embeddings:
+#    SwitchBoard serves no /v1/embeddings endpoint. Candidates are pre-filtered
+#    lexically, then the LLM judges which are genuinely related.
+# Compute a term-frequency vector for each wiki page
 # Find top-k similar pages via cosine similarity
 # Insert [[PageTitle]] links into content where relevant
 similar_pages = await vector_store.search(
@@ -310,7 +334,7 @@ sequenceDiagram
 ### Option A: Docker Compose (Recommended)
 
 ```bash
-git clone https://github.com/nexuslayer/wikillm.git
+git clone https://github.com/NexusLayerEU/wiki-llm.git
 cd wikillm
 
 cp .env.example .env
@@ -320,8 +344,9 @@ Edit `.env`:
 
 ```bash
 # LLM Provider (choose one)
-LLM_PROVIDER=anthropic
-ANTHROPIC_API_KEY=sk-ant-...
+# ⓘ Superseded — all LLM calls now go through SwitchBoard:
+SWITCHBOARD_API_KEY=sk-...
+SWITCHBOARD_MODEL=ag/claude-sonnet-4-6
 
 # OR: Google Gemini
 # LLM_PROVIDER=gemini
@@ -349,7 +374,7 @@ docker compose up -d
 ### Option B: Python (uv/pip)
 
 ```bash
-git clone https://github.com/nexuslayer/wikillm.git
+git clone https://github.com/NexusLayerEU/wiki-llm.git
 cd wikillm/wikiforge
 
 # Using uv (recommended)
@@ -677,9 +702,11 @@ for chunk in context["chunks"]:
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `LLM_PROVIDER` | ✅ | `anthropic` | `anthropic` \| `gemini` \| `ollama` |
-| `ANTHROPIC_API_KEY` | ⚠️ | — | Required if `LLM_PROVIDER=anthropic` |
-| `GEMINI_API_KEY` | ⚠️ | — | Required if `LLM_PROVIDER=gemini` |
-| `OLLAMA_BASE_URL` | ⚠️ | `http://localhost:11434` | Required if `LLM_PROVIDER=ollama` |
+| `SWITCHBOARD_API_KEY` | ✅ | — | ⓘ All LLM calls go through SwitchBoard. Without it the pipeline cannot run its LLM stages |
+| `SWITCHBOARD_URL` | — | `https://switchboard.nexuslayer.eu/v1` | ⓘ OpenAI-compatible endpoint |
+| `SWITCHBOARD_MODEL` | — | `ag/claude-sonnet-4-6` | ⓘ Antigravity route. Per-provider API keys are no longer used |
+| `SSO_JWT_SECRET` | ⚠️ | *(none)* | No default on purpose — unset means no token verifies |
+| `WIKIFORGE_REQUIRE_AUTH` | — | `false` | On in production |
 | `OLLAMA_MODEL` | — | `llama3.2` | Ollama model name |
 | `LLM_MODEL` | — | `claude-sonnet-4-5` | LLM model (provider-specific) |
 | `DATABASE_URL` | — | `sqlite:///./data/wikillm.db` | SQLAlchemy DB URL |
@@ -709,7 +736,7 @@ services:
     ports: ["8000:8000"]
     environment:
       LLM_PROVIDER: ${LLM_PROVIDER:-anthropic}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      SWITCHBOARD_API_KEY: ${SWITCHBOARD_API_KEY}   # ⓘ replaces the per-provider keys
       DATABASE_URL: sqlite:////data/wikillm.db
       VECTOR_STORE: chroma
       CHROMA_PATH: /data/chroma
@@ -771,7 +798,7 @@ ignore:
 ### Local Setup
 
 ```bash
-git clone https://github.com/nexuslayer/wikillm.git
+git clone https://github.com/NexusLayerEU/wiki-llm.git
 cd wikillm/wikiforge
 
 # Setup Python environment
@@ -782,7 +809,7 @@ pip install -r requirements-dev.txt
 
 # Configure
 cp .env.example .env
-# Edit .env — set ANTHROPIC_API_KEY or OLLAMA_BASE_URL
+# Edit .env — set SWITCHBOARD_API_KEY and SSO_JWT_SECRET
 
 # Run API
 uvicorn app.main:app --reload --port 8000
@@ -870,6 +897,57 @@ open htmlcov/index.html
 | **Delta processing** | ✅ | N/A | N/A | N/A | ⚠️ |
 | **MCP / agent integration** | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **Price** | **Free / Self-hosted** | $5.75/seat/mo | $8+/mo | $10+/mo | Dev time |
+
+---
+
+## 🖥️ Desktop app
+
+A local-first Markdown notebook that syncs to a WikiForge server. Notes are plain
+`.md` files in a folder you choose — openable in any editor, backed up however you
+like, and yours if you stop using the app.
+
+```bash
+cd desktop
+npm install
+npm run app        # dev
+npm run bundle     # installers for the current platform
+```
+
+Artefacts land in `desktop/src-tauri/target/release/bundle/` — `.app` and `.dmg` on
+macOS, NSIS `.exe` on Windows, `.deb` and `.AppImage` on Linux. Tauri does not
+cross-compile, so each installer is built on its own platform.
+
+Sync compares, per note, the hash from the last time local and remote agreed against
+the current local and remote hashes — so it knows *who* changed, not merely that they
+differ. When both changed it writes the server's version beside yours as
+`name (server copy).md` and leaves both; nothing is ever overwritten silently. Full
+table in [`desktop/README.md`](desktop/README.md).
+
+---
+
+## ⚠️ Deviations from the original design
+
+The implementation was rebuilt from the specification in this repo after the original
+source was lost. It follows the spec except where noted:
+
+1. **One SQLite database, not one per project.** Every query is already scoped by
+   project id; per-project engines would mean a connection pool and a session factory
+   chosen per request for no gain at this scale. Table shapes are unchanged.
+2. **Cross-linking uses local TF-IDF cosine, not provider embeddings.** SwitchBoard
+   serves none and ModelRouter never had one. The spec's shape is preserved — cheap
+   pre-filter proposes, LLM judges — so `wikiforge/wiki/similarity.py` is the single
+   file to replace if a vector service appears.
+3. **A single SwitchBoard provider replaces the Claude/Gemini/Ollama classes.** This
+   is what `LLM_PROVIDER.md` itself instructs, updated 2026-07-02.
+4. **No file-watcher daemon.** Sync is on demand via `POST /trigger-sync`, which the
+   UI calls. `GET /watcher` reports `"on-demand"` rather than claiming a poller that
+   does not exist.
+5. **Cost is reported as `0.00`.** SwitchBoard returns no per-call pricing, and an
+   invented figure in a cost column is worse than a blank one.
+6. **Celery/Redis and the WebSocket event stream are not implemented.** The in-process
+   queue covers a single-node deployment; both remain viable additions.
+7. **`.doc` is refused with an explanation** rather than parsed — it is a different
+   binary format from `.docx`.
 
 ---
 

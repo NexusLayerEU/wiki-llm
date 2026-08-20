@@ -1,0 +1,14 @@
+Answer the question using only the wiki excerpts below.
+
+Question: {{ question }}
+
+{% for page in pages %}
+--- PAGE {{ loop.index }}: {{ page.title }} (slug: {{ page.slug }}) ---
+{{ page.content }}
+{% endfor %}
+
+Rules:
+- Use only these excerpts. If they do not contain the answer, say so plainly.
+- Cite the pages you used by title.
+- Answer in {{ output_format }}.
+- Be direct. No preamble.

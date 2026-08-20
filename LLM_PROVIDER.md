@@ -1,5 +1,28 @@
 # WikiForge — LLM Provider Abstraction
 
+> **2026-07-02 update — use ModelRouter, not per-provider API keys.**
+> This product should NOT implement separate Anthropic/Gemini/Ollama clients with their
+> own API keys (as the sections below originally described). All NexusLayer products
+> route LLM calls through **ModelRouter** (`https://router.nexuslayer.eu`, Contabo VPS
+> 184.174.34.245 — not the homelab), which already provides multi-provider routing,
+> fallback, and centralized key management (design goals #1 and #4 below are handled
+> by ModelRouter itself, not by this product). Auth is the shared NexusLayer SSO JWT
+> (`Authorization: Bearer <token>`) forwarded from the caller's own session — see the
+> `modelrouter` skill (or `aiidentityserver` skill) for the exact token/flow.
+>
+> ModelRouter is an **Anthropic Messages API-compatible chat proxy only** — it has no
+> embeddings endpoint. If/when this pipeline needs embeddings (see "Ollama Provider"
+> section below), that must go directly to a real, reachable embedding provider (e.g.
+> a local Ollama sidecar, as BrainVault now does), not through ModelRouter.
+>
+> When implementing `wikiforge/llm/`, replace the Claude/Gemini/Ollama-with-own-keys
+> providers below with a single `ModelRouterProvider` that POSTs to
+> `{MODELROUTER_URL:-https://router.nexuslayer.eu}/v1/messages` with the caller's
+> forwarded SSO token — mirroring the pattern already working in BrainVault's
+> `RagService.kt` (`/Users/admin/Documents/Thomas-SRC/NextLayer/products/release/brain-vault/backend/src/main/kotlin/app/brainvault/api/service/RagService.kt`).
+> Keep a separate, explicit embedding path (not through ModelRouter) for anything
+> needing vectors.
+
 ## Design Goals
 
 1. Support multiple LLM providers without pipeline code changes

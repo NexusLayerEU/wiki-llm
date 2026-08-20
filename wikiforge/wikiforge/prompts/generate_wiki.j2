@@ -1,0 +1,24 @@
+Rewrite the source material below as a single well-structured wiki page in Markdown.
+
+Page title: {{ page_title }}
+Category: {{ category }}{% if subcategory %} / {{ subcategory }}{% endif %}
+
+Summary of the source: {{ summary }}
+{% if key_points %}
+Key points that must appear:
+{% for point in key_points %}- {{ point }}
+{% endfor %}
+{% endif %}
+
+Requirements:
+- Start with a `# {{ page_title }}` heading, then a short intro paragraph.
+- Organise the rest under `##` and `###` headings that suit the material.
+- Keep every table from the source as a Markdown table. Do not summarise tables away.
+- Preserve specific facts: names, numbers, IP addresses, paths, commands, versions.
+- Do not invent anything that is not in the source. No filler, no "in conclusion".
+- Write in the source material's own language.
+- Output Markdown only — no code fence around the whole page, no commentary.
+
+--- SOURCE MATERIAL ---
+{{ content }}
+--- END SOURCE MATERIAL ---

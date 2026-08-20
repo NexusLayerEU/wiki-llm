@@ -10,11 +10,9 @@ import jwt
 from fastapi import HTTPException, Request, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-SSO_JWT_SECRET = os.getenv(
-    "SSO_JWT_SECRET",
-    "nexuslayer-shared-sso-secret-change-in-production-64chars!!",
-)
-IDS_URL = os.getenv("IDENTITY_SERVER_URL", "http://192.168.68.111:8087")
+# Deliberately no fallback value: see config.py. Unset means no token verifies.
+SSO_JWT_SECRET = os.getenv("SSO_JWT_SECRET", "")
+IDS_URL = os.getenv("IDENTITY_SERVER_URL", "https://identity.nexuslayer.eu")
 PRODUCT_NAME = "wikillm"
 TRIAL_DAYS_S = 7 * 24 * 60 * 60
 
@@ -23,8 +21,12 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 def decode_sso_token(token: str) -> Optional[dict]:
     """Decode and validate an SSO JWT token. Returns claims or None if invalid."""
+    if not SSO_JWT_SECRET:
+        # Without a secret nothing can be verified. Refusing every token is the
+        # only safe answer; accepting them unverified would be worse than useless.
+        return None
     try:
-        return jwt.decode(token, SSO_JWT_SECRET, algorithms=["HS256"])
+        return jwt.decode(token, SSO_JWT_SECRET, algorithms=["HS256", "HS384"])
     except Exception:
         return None
 

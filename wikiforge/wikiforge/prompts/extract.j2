@@ -1,0 +1,20 @@
+Analyse the document below and return a JSON object describing it.
+
+Document: {{ filename }} ({{ file_type }}, {{ section_count }} section(s))
+
+Return exactly this shape, with no prose around it:
+{
+  "summary": "2-4 sentences describing what this document is and what it covers",
+  "topics": ["3-8 short lowercase topic keywords"],
+  "entities": [{"name": "Proper noun mentioned", "type": "person|organisation|system|location|technology|other"}],
+  "key_points": ["3-8 concrete factual statements taken from the document"]
+}
+
+Rules:
+- Use only what the document says. Do not add outside knowledge.
+- If the document is a spreadsheet or table, describe what the data represents.
+- Write in the document's own language.
+
+--- DOCUMENT ---
+{{ content }}
+--- END DOCUMENT ---
