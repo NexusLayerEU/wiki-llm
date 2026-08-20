@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "WikiForge",
+  "version": "0.1.0",
+  "identifier": "eu.nexuslayer.wikiforge",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:5174",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "WikiForge",
+        "width": 1180,
+        "height": 780,
+        "minWidth": 720,
+        "minHeight": 480,
+        "titleBarStyle": "Visible"
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "style-src": "'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src": "'self' https://fonts.gstatic.com",
+        "img-src": "'self' data: asset: http://asset.localhost",
+        "connect-src": "'self' ipc: http://ipc.localhost https: http:"
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "app", "nsis", "deb", "appimage"],
+    "icon": ["icons/icon.png"],
+    "category": "Productivity",
+    "shortDescription": "Notes that sync to WikiForge",
+    "longDescription": "A local-first markdown notebook. Notes live as .md files on disk and sync to a WikiForge server, which turns them into a cross-linked wiki."
+  }
+}

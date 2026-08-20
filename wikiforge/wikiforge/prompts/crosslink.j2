@@ -1,0 +1,22 @@
+Decide which of the candidate wiki pages are genuinely related to the current page.
+
+Current page: {{ current_title }}
+Summary: {{ current_summary }}
+Topics: {{ current_topics | join(", ") }}
+
+Candidates (lexical similarity score shown, which is a hint, not an answer):
+{% for candidate in candidates %}
+- slug: {{ candidate.slug }}
+  title: {{ candidate.title }}
+  topics: {{ candidate.topics | join(", ") }}
+  score: {{ "%.2f" | format(candidate.similarity) }}
+{% endfor %}
+
+Return a JSON array of the ones a reader of the current page would actually want to
+follow. Drop anything merely sharing common vocabulary. Fewer, better links are the
+goal — an empty array is a valid answer.
+
+[
+  {"slug": "candidate-slug", "title": "Candidate Title", "relevance": 0.0,
+   "reason": "one short clause on how they relate"}
+]

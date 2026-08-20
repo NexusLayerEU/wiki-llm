@@ -1,11 +1,44 @@
+# --- secrets ---------------------------------------------------------------
 .env
 .env.*
-target/
-build/
-dist/
-node_modules/
+!.env.example
+
+# --- python ----------------------------------------------------------------
+.venv/
+.venv-*/
+venv/
 __pycache__/
-*.pyc
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- node ------------------------------------------------------------------
+node_modules/
+dist/
+build/
+
+# --- rust / tauri ----------------------------------------------------------
+target/
+src-tauri/gen/
+
+# --- build output that is generated, never authored -------------------------
+# The UI is compiled into the Python package at image build time (see Dockerfile),
+# so a committed copy would only ever be a stale duplicate of frontend/.
+wikiforge/wikiforge/static/
+
+# --- runtime data ----------------------------------------------------------
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# --- os / editor -----------------------------------------------------------
 .DS_Store
-*.jar
-*.war
+*.swp
+*.tmp
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat

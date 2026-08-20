@@ -1,0 +1,43 @@
+# WikiForge on the NexusLayer production VPS — wikillm.nexuslayer.eu
+#
+# One container. No Redis: the pipeline uses the in-process queue, so there is no
+# broker to run for a single-node deployment (PIPELINE.md offers both).
+#
+# Port 4003 is what the nexuslayer-server-production skill already documents for
+# WikiLLM, and it binds 0.0.0.0 to match the other products on this host.
+name: wikillm
+
+services:
+  wikillm:
+    build: .
+    image: wikillm-wikiforge:latest
+    container_name: wikillm
+    restart: unless-stopped
+    ports:
+      - "4003:8000"
+    environment:
+      WIKIFORGE_DATA_DIR: /data
+      WIKIFORGE_LOG_LEVEL: INFO
+      # Three workers: each can be inside an LLM call, and the ag/ routes
+      # rate-limit long before this box runs out of CPU.
+      WIKIFORGE_WORKERS: "3"
+      WIKIFORGE_REQUIRE_AUTH: "true"
+      SSO_JWT_SECRET: ${SSO_JWT_SECRET}
+      IDENTITY_SERVER_URL: ${IDENTITY_SERVER_URL:-https://identity.nexuslayer.eu}
+      SWITCHBOARD_URL: ${SWITCHBOARD_URL:-https://switchboard.nexuslayer.eu/v1}
+      SWITCHBOARD_API_KEY: ${SWITCHBOARD_API_KEY}
+      SWITCHBOARD_MODEL: ${SWITCHBOARD_MODEL:-ag/claude-sonnet-4-6}
+      LLM_TIMEOUT_SECONDS: "180"
+    volumes:
+      # Wiki pages, uploads and the SQLite database. The database is the source of
+      # truth, so this volume is the thing to back up.
+      - wikillm-data:/data
+    networks:
+      - nexuslayer-net
+
+volumes:
+  wikillm-data:
+
+networks:
+  nexuslayer-net:
+    external: true

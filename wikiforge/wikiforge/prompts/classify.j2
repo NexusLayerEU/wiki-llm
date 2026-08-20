@@ -1,0 +1,26 @@
+Decide where this document belongs in a wiki.
+
+Summary: {{ summary }}
+Topics: {{ topics | join(", ") }}
+Key points:
+{% for point in key_points %}- {{ point }}
+{% endfor %}
+
+{% if existing_categories %}
+Categories already in this wiki (reuse one if it fits — a wiki with fewer, fuller
+categories is easier to navigate than one with a category per page):
+{% for category in existing_categories %}- {{ category.name }} ({{ category.count }} page(s))
+{% endfor %}
+{% else %}
+This is the first page in the wiki, so choose a category that will still make sense
+once there are fifty more.
+{% endif %}
+
+Return exactly this JSON, no prose:
+{
+  "category": "Top-level category, title case, 1-3 words",
+  "subcategory": "Optional narrower grouping, or null",
+  "page_title": "A descriptive page title, title case",
+  "page_slug": "url-safe-lowercase-hyphenated",
+  "confidence": 0.0
+}
